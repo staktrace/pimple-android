@@ -7,6 +7,7 @@ package com.staktrace.pimple;
 
 import android.app.AlertDialog;
 import android.content.ContentProviderOperation;
+import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.OperationApplicationException;
@@ -22,6 +23,8 @@ import java.io.InputStreamReader;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -70,10 +73,20 @@ class PimpleContactInjector implements View.OnClickListener {
     private static final int NUM_FIELDS = 4;
 
     private final Context _context;
+    private final ContentResolver _resolver;
+    private final MessageDigest _digester;
     private String _source;
 
     PimpleContactInjector( Context context ) {
         _context = context;
+        _resolver = _context.getContentResolver();
+        MessageDigest digester;
+        try {
+            digester = MessageDigest.getInstance( "SHA-1" );
+        } catch (NoSuchAlgorithmException nsae) {
+            digester = null;
+        }
+        _digester = digester;
     }
 
     private InputStream fetchContacts() throws IOException {
@@ -101,13 +114,13 @@ class PimpleContactInjector implements View.OnClickListener {
     }
 
     private int doInsert( Uri table, ContentValues values ) {
-        Uri inserted = _context.getContentResolver().insert( table, values );
+        Uri inserted = _resolver.insert( table, values );
         return Integer.parseInt( inserted.getLastPathSegment() );
     }
 
     private int getGroupId() {
         int groupId = -1;
-        Cursor c = _context.getContentResolver().query( ContactsContract.Groups.CONTENT_URI,
+        Cursor c = _resolver.query( ContactsContract.Groups.CONTENT_URI,
                                                         new String[] { ContactsContract.Groups._ID },
                                                         QUERY,
                                                         new String[] { PIMPLE_TYPE, _source },
@@ -120,7 +133,6 @@ class PimpleContactInjector implements View.OnClickListener {
             c.close();
         }
         if (groupId < 0) {
-            // 19-Dec-2010: this code hasn't been exercised yet (should work though, did the equivalent manually via OneTimeAction)
             ContentValues values = new ContentValues();
             values.put( ContactsContract.Groups.ACCOUNT_TYPE, PIMPLE_TYPE );
             values.put( ContactsContract.Groups.ACCOUNT_NAME, _source );
@@ -171,11 +183,11 @@ class PimpleContactInjector implements View.OnClickListener {
     private int getRawContactId( String pimpleId, int groupId, ArrayList<ContentProviderOperation> ops, int[] counts ) {
         int rawContactId = -1;
         if (pimpleId != null) {
-            Cursor c = _context.getContentResolver().query( ContactsContract.RawContacts.CONTENT_URI,
-                                                            new String[] { ContactsContract.RawContacts._ID },
-                                                            QUERY + " AND " + ContactsContract.RawContacts.SOURCE_ID + "=?",
-                                                            new String[] { PIMPLE_TYPE, _source, pimpleId },
-                                                            null );
+            Cursor c = _resolver.query( ContactsContract.RawContacts.CONTENT_URI,
+                                        new String[] { ContactsContract.RawContacts._ID },
+                                        QUERY + " AND " + ContactsContract.RawContacts.SOURCE_ID + "=?",
+                                        new String[] { PIMPLE_TYPE, _source, pimpleId },
+                                        null );
             try {
                 if (c.moveToNext()) {
                     rawContactId = c.getInt( 0 );
@@ -224,7 +236,7 @@ class PimpleContactInjector implements View.OnClickListener {
             query.append( ',' ).append( id );
         }
         query.append( ')' );
-        counts[ COUNT_CONTACTS_DELETED ] += _context.getContentResolver().delete( adapterUri, query.toString(), new String[] { PIMPLE_TYPE, _source } );
+        counts[ COUNT_CONTACTS_DELETED ] += _resolver.delete( adapterUri, query.toString(), new String[] { PIMPLE_TYPE, _source } );
 
         query.setLength( 0 );
         query.append( ContactsContract.Data._ID ).append( " IN (-1" );
@@ -232,10 +244,109 @@ class PimpleContactInjector implements View.OnClickListener {
             query.append( ',' ).append( id );
         }
         query.append( ')' );
-        counts[ COUNT_DATA_DELETED ] += _context.getContentResolver().delete( ContactsContract.Data.CONTENT_URI, query.toString(), null );
+        counts[ COUNT_DATA_DELETED ] += _resolver.delete( ContactsContract.Data.CONTENT_URI, query.toString(), null );
     }
 
-    private int[] updateContacts( BufferedReader source, int groupId ) throws IOException, RemoteException, OperationApplicationException {
+    private String getDigest( int rawContactId, String[] fields ) {
+        StringBuffer sb = new StringBuffer( rawContactId ).append( ',' )
+                            .append( fields[ FIELD_NAME ] ).append( ',' )
+                            .append( fields[ FIELD_ID ] ).append( ',' )
+                            .append( fields[ FIELD_TYPE ] ).append( ',' )
+                            .append( fields[ FIELD_VALUE ] );
+        _digester.reset();
+        byte[] bytes = _digester.digest( sb.toString().getBytes() );
+        sb.setLength( 0 );
+        for (int i = 0; i < bytes.length; i++) {
+            int b = (bytes[i] & 0xF0) >> 4;
+            sb.append( (char)(b < 10 ? '0' + b : 'a' + b - 10) );
+            b = (bytes[i] & 0x0F);
+            sb.append( (char)(b < 10 ? '0' + b : 'a' + b - 10) );
+        }
+        return sb.toString();
+    }
+
+    private ContentProviderOperation.Builder updateBuilder( ContentProviderOperation.Builder builder, int name, String[] fields ) {
+        switch (name) {
+            case NAME_FULLNAME:
+                builder = builder.withValue( ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, fields[ FIELD_VALUE ] );
+                break;
+            case NAME_TELEPHONE:
+                int typeInt = 0;
+                if (TYPE_CELL.equalsIgnoreCase( fields[ FIELD_TYPE ] )) {
+                    typeInt = ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE;
+                } else if (TYPE_HOME.equalsIgnoreCase( fields[ FIELD_TYPE ] )) {
+                    typeInt = ContactsContract.CommonDataKinds.Phone.TYPE_HOME;
+                } else if (TYPE_WORK.equalsIgnoreCase( fields[ FIELD_TYPE ] )) {
+                    typeInt = ContactsContract.CommonDataKinds.Phone.TYPE_WORK;
+                }
+                builder = builder.withValue( ContactsContract.CommonDataKinds.Phone.NUMBER, fields[ FIELD_VALUE ] )
+                                 .withValue( ContactsContract.CommonDataKinds.Phone.TYPE, typeInt );
+                break;
+            case NAME_EMAIL:
+                builder = builder.withValue( ContactsContract.CommonDataKinds.Email.DATA, fields[ FIELD_VALUE ] )
+                                 .withValue( ContactsContract.CommonDataKinds.Email.TYPE, ContactsContract.CommonDataKinds.Email.TYPE_CUSTOM )
+                                 .withValue( ContactsContract.CommonDataKinds.Email.LABEL, fields[ FIELD_TYPE ] );
+                break;
+        }
+        return builder;
+    }
+
+    private Set<Integer> updateContactData( int rawContactId, List<String[]> vcard, Cursor dataCursor, ArrayList<ContentProviderOperation> ops, int[] counts ) {
+        Set<Integer> liveDataIds = new TreeSet<Integer>();
+
+        for (String[] fields : vcard) {
+            int name = nameInt( fields[ FIELD_NAME ] );
+            if (name < 0) {
+                continue;
+            }
+
+            if (fields[ FIELD_ID ] == null) {
+                continue;
+            }
+
+            int dataId = -1;
+            String oldDigest = null;
+            dataCursor.moveToFirst();
+            while (dataCursor.moveToNext()) {
+                if (fields[ FIELD_ID ].equals( dataCursor.getString( 2 ) ) && NAME_MIMETYPES[ name ].equals( dataCursor.getString( 1 ))) {
+                    dataId = dataCursor.getInt( 0 );
+                    oldDigest = dataCursor.getString( 3 );
+                    break;
+                }
+            }
+
+            String newDigest = getDigest( rawContactId, fields );
+
+            ContentProviderOperation.Builder builder = null;
+            if (dataId < 0) {
+                System.out.println( "Data item for [" + fields[ FIELD_NAME ] + "]/[" + fields[ FIELD_ID ] + "] not found; creating..." );
+                builder = ContentProviderOperation.newInsert( ContactsContract.Data.CONTENT_URI )
+                                                  .withValue( ContactsContract.Data.RAW_CONTACT_ID, rawContactId )
+                                                  .withValue( ContactsContract.Data.SYNC1, fields[ FIELD_ID ] )
+                                                  .withValue( ContactsContract.Data.SYNC2, newDigest )
+                                                  .withValue( ContactsContract.Data.MIMETYPE, NAME_MIMETYPES[ name ] );
+                counts[ COUNT_DATA_ADDED ]++;
+            } else {
+                liveDataIds.add( dataId );
+                if (! newDigest.equals( oldDigest )) {
+                    System.out.println( "Data item for [" + fields[ FIELD_NAME ] + "]/[" + fields[ FIELD_ID ] + "] modified; updating..." );
+                    builder = ContentProviderOperation.newUpdate( ContactsContract.Data.CONTENT_URI )
+                                                      .withSelection( ContactsContract.Data._ID + "=?", new String[] { Integer.toString( dataId ) } )
+                                                      .withValue( ContactsContract.Data.SYNC2, newDigest );
+                    counts[ COUNT_DATA_UPDATED ]++;
+                }
+            }
+
+            if (builder != null) {
+                builder = updateBuilder( builder, name, fields );
+                ops.add( builder.build() );
+            }
+        }
+
+        return liveDataIds;
+    }
+
+    private int[] updateContacts( BufferedReader source, int groupId ) throws IOException, RemoteException, OperationApplicationException, NoSuchAlgorithmException {
         List<Integer> liveRawContactIds = new ArrayList<Integer>();
         List<Integer> deadDataIds = new ArrayList<Integer>();
 
@@ -270,86 +381,29 @@ class PimpleContactInjector implements View.OnClickListener {
 
             System.out.println( "Mapped to raw contact id [" + rawContactId + "]" );
 
-            Cursor c = _context.getContentResolver().query( ContactsContract.Data.CONTENT_URI,
-                                                            new String[] { ContactsContract.Data._ID, ContactsContract.Data.MIMETYPE, ContactsContract.Data.SYNC1 },
-                                                            ContactsContract.Data.RAW_CONTACT_ID + "=?",
-                                                            new String[] { Integer.toString( rawContactId ) },
-                                                            null );
+            Cursor c = _resolver.query( ContactsContract.Data.CONTENT_URI,
+                                        new String[] { ContactsContract.Data._ID, ContactsContract.Data.MIMETYPE, ContactsContract.Data.SYNC1, ContactsContract.Data.SYNC2 },
+                                        ContactsContract.Data.RAW_CONTACT_ID + "=?",
+                                        new String[] { Integer.toString( rawContactId ) },
+                                        null );
             try {
-                Set<Integer> liveDataIds = new TreeSet<Integer>();
-                for (String[] fields : vcard) {
-                    int name = nameInt( fields[ FIELD_NAME ] );
-                    if (name < 0) {
-                        continue;
-                    }
-
-                    if (fields[ FIELD_ID ] == null) {
-                        continue;
-                    }
-
-                    int dataId = -1;
-                    c.moveToFirst();
-                    while (c.moveToNext()) {
-                        if (fields[ FIELD_ID ].equals( c.getString( 2 ) ) && NAME_MIMETYPES[ name ].equals( c.getString( 1 ))) {
-                            dataId = c.getInt( 0 );
-                            break;
-                        }
-                    }
-
-                    ContentProviderOperation.Builder builder;
-                    if (dataId < 0) {
-                        builder = ContentProviderOperation.newInsert( ContactsContract.Data.CONTENT_URI )
-                                                          .withValue( ContactsContract.Data.RAW_CONTACT_ID, rawContactId )
-                                                          .withValue( ContactsContract.Data.SYNC1, fields[ FIELD_ID ] )
-                                                          .withValue( ContactsContract.Data.MIMETYPE, NAME_MIMETYPES[ name ] );
-                        counts[ COUNT_DATA_ADDED ]++;
-                    } else {
-                        liveDataIds.add( dataId );
-                        builder = ContentProviderOperation.newUpdate( ContactsContract.Data.CONTENT_URI )
-                                                          .withSelection( ContactsContract.Data._ID + "=?", new String[] { Integer.toString( dataId ) } );
-                        counts[ COUNT_DATA_UPDATED ]++;
-                    }
-
-                    switch (name) {
-                        case NAME_FULLNAME:
-                            builder = builder.withValue( ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, fields[ FIELD_VALUE ] );
-                            break;
-                        case NAME_TELEPHONE:
-                            int typeInt = 0;
-                            if (TYPE_CELL.equalsIgnoreCase( fields[ FIELD_TYPE ] )) {
-                                typeInt = ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE;
-                            } else if (TYPE_HOME.equalsIgnoreCase( fields[ FIELD_TYPE ] )) {
-                                typeInt = ContactsContract.CommonDataKinds.Phone.TYPE_HOME;
-                            } else if (TYPE_WORK.equalsIgnoreCase( fields[ FIELD_TYPE ] )) {
-                                typeInt = ContactsContract.CommonDataKinds.Phone.TYPE_WORK;
-                            }
-                            builder = builder.withValue( ContactsContract.CommonDataKinds.Phone.NUMBER, fields[ FIELD_VALUE ] )
-                                             .withValue( ContactsContract.CommonDataKinds.Phone.TYPE, typeInt );
-                            break;
-                        case NAME_EMAIL:
-                            builder = builder.withValue( ContactsContract.CommonDataKinds.Email.DATA, fields[ FIELD_VALUE ] )
-                                             .withValue( ContactsContract.CommonDataKinds.Email.TYPE, ContactsContract.CommonDataKinds.Email.TYPE_CUSTOM )
-                                             .withValue( ContactsContract.CommonDataKinds.Email.LABEL, fields[ FIELD_TYPE ] );
-                            break;
-                    }
-
-                    ops.add( builder.build() );
-                }
-
+                Set<Integer> liveDataIds = updateContactData( rawContactId, vcard, c, ops, counts );
                 c.moveToFirst();
                 while (c.moveToNext()) {
                     int dataId = c.getInt( 0 );
                     if (! liveDataIds.contains( dataId )) {
+                        System.out.println( "Found dead data item [" + dataId + "]" );
                         deadDataIds.add( dataId );
                     }
                 }
+
+                _resolver.applyBatch( ContactsContract.AUTHORITY, ops );
+                ops.clear();
             } finally {
                 c.close();
             }
             vcard.clear();
         }
-
-        _context.getContentResolver().applyBatch( ContactsContract.AUTHORITY, ops );
 
         removeDeadItems( liveRawContactIds, deadDataIds, counts );
 
