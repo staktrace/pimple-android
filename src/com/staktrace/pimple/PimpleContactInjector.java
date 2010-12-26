@@ -59,12 +59,11 @@ class PimpleContactInjector implements View.OnClickListener {
     private static final String TYPE_CELL = "CELL";
 
     private static final int COUNT_CONTACTS_ADDED = 0;
-    private static final int COUNT_CONTACTS_UPDATED = 1;
-    private static final int COUNT_CONTACTS_DELETED = 2;
-    private static final int COUNT_DATA_ADDED = 3;
-    private static final int COUNT_DATA_UPDATED = 4;
-    private static final int COUNT_DATA_DELETED = 5;
-    private static final int NUM_COUNTS = 6;
+    private static final int COUNT_CONTACTS_DELETED = 1;
+    private static final int COUNT_DATA_ADDED = 2;
+    private static final int COUNT_DATA_UPDATED = 3;
+    private static final int COUNT_DATA_DELETED = 4;
+    private static final int NUM_COUNTS = 5;
 
     private static final int FIELD_NAME = 0;
     private static final int FIELD_TYPE = 1;
@@ -211,8 +210,6 @@ class PimpleContactInjector implements View.OnClickListener {
                                              .withValue( ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID, groupId )
                                              .build() );
             counts[ COUNT_CONTACTS_ADDED ]++;
-        } else {
-            counts[ COUNT_CONTACTS_UPDATED ]++;
         }
 
         return rawContactId;
@@ -420,8 +417,8 @@ class PimpleContactInjector implements View.OnClickListener {
             }
             try {
                 int[] counts = updateContacts( new BufferedReader( new InputStreamReader( in ) ), getGroupId() );
-                String msg = "Injected " + counts[ COUNT_CONTACTS_ADDED ] + " new contacts, updated " + counts[ COUNT_CONTACTS_UPDATED ]
-                           + " existing contacts, and deleted " + counts[ COUNT_CONTACTS_DELETED ] + " contacts."
+                String msg = "Injected " + counts[ COUNT_CONTACTS_ADDED ] + " new contacts"
+                           + " and deleted " + counts[ COUNT_CONTACTS_DELETED ] + " contacts."
                            + " Added " + counts[ COUNT_DATA_ADDED ] + " new data items, updated " + counts[ COUNT_DATA_UPDATED ]
                            + " existing data items, and deleted " + counts[ COUNT_DATA_DELETED ] + " data items.";
                 new AlertDialog.Builder( _context ).setTitle( "Pimple" ).setMessage( msg ).show();
