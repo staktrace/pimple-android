@@ -3,7 +3,7 @@
  * See http://staktrace.com/ for license details.
  */
 
-package com.staktrace.pimple;
+package com.staktrace.pimple.contacts;
 
 import android.app.Activity;
 import android.os.Bundle;
