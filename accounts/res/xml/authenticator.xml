@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<account-authenticator xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accountType="com.staktrace.pimple"
+    android:icon="@drawable/staktrace"
+    android:smallIcon="@drawable/staktrace"
+    android:label="@string/app_name"
+/>

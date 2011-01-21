@@ -1,3 +1,6 @@
+accounts/local.properties
+accounts/gen
+accounts/bin
 contacts/local.properties
 contacts/gen
 contacts/bin
