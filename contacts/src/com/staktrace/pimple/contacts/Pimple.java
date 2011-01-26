@@ -7,16 +7,18 @@ package com.staktrace.pimple.contacts;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Button;
 
 public class Pimple extends Activity {
     @Override public void onCreate( Bundle savedInstanceState ) {
         super.onCreate( savedInstanceState );
         setContentView( R.layout.main );
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException ie) {
-        }
-        ( (Button)findViewById( R.id.contactinjector ) ).setOnClickListener( new PimpleContactInjector( this ) );
+    }
+
+    // onclick handler
+
+    public void injectContacts( View view ) {
+        new PimpleContactInjector( this ).inject();
     }
 }

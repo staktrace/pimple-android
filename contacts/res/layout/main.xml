@@ -14,5 +14,6 @@
         android:layout_height="wrap_content"
         android:id="@+id/contactinjector"
         android:text="Inject Contacts"
+        android:onClick="injectContacts"
         />
 </LinearLayout>

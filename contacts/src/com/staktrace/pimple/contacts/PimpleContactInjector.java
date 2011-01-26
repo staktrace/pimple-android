@@ -15,7 +15,6 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.RemoteException;
 import android.provider.ContactsContract;
-import android.view.View;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -31,7 +30,7 @@ import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.TreeSet;
 
-class PimpleContactInjector implements View.OnClickListener {
+class PimpleContactInjector {
     private static final String QUERY = ContactsContract.RawContacts.ACCOUNT_TYPE + "=? AND " + ContactsContract.RawContacts.ACCOUNT_NAME + "=?";
     private static final String PIMPLE_TYPE = "com.staktrace.pimple";
     private static final String MIME_VCARD = "text/x-vcard";
@@ -74,7 +73,7 @@ class PimpleContactInjector implements View.OnClickListener {
     private final Context _context;
     private final ContentResolver _resolver;
     private final MessageDigest _digester;
-    private String _source;
+    private String _accountName;
 
     PimpleContactInjector( Context context ) {
         _context = context;
@@ -91,8 +90,13 @@ class PimpleContactInjector implements View.OnClickListener {
     private InputStream fetchContacts() throws IOException {
         BufferedReader br = new BufferedReader( new InputStreamReader( _context.getResources().openRawResource( R.raw.pimple ) ) );
         try {
-            _source = br.readLine();
-            URL url = new URL( "https://" + _source + "/touch/vcard.php?tag=vcard" );
+            _accountName = br.readLine();
+            String server = _accountName;
+            int at = server.indexOf( '@' );
+            if (at >= 0) {
+                server = server.substring( at + 1 );
+            }
+            URL url = new URL( "https://" + server + "/touch/vcard.php?tag=vcard" );
             URLConnection conn = url.openConnection();
             for (String s = br.readLine(); s != null; s = br.readLine()) {
                 int colon = s.indexOf( ':' );
@@ -122,7 +126,7 @@ class PimpleContactInjector implements View.OnClickListener {
         Cursor c = _resolver.query( ContactsContract.Groups.CONTENT_URI,
                                                         new String[] { ContactsContract.Groups._ID },
                                                         QUERY,
-                                                        new String[] { PIMPLE_TYPE, _source },
+                                                        new String[] { PIMPLE_TYPE, _accountName },
                                                         null );
         try {
             if (c.moveToNext()) {
@@ -134,10 +138,10 @@ class PimpleContactInjector implements View.OnClickListener {
         if (groupId < 0) {
             ContentValues values = new ContentValues();
             values.put( ContactsContract.Groups.ACCOUNT_TYPE, PIMPLE_TYPE );
-            values.put( ContactsContract.Groups.ACCOUNT_NAME, _source );
+            values.put( ContactsContract.Groups.ACCOUNT_NAME, _accountName );
             values.put( ContactsContract.Groups.GROUP_VISIBLE, 1 );
-            values.put( ContactsContract.Groups.TITLE, "Pimple from " + _source );
-            values.put( ContactsContract.Groups.NOTES, "Contacts from " + _source + " via Pimple" );
+            values.put( ContactsContract.Groups.TITLE, "Pimple from " + _accountName );
+            values.put( ContactsContract.Groups.NOTES, "Contacts from " + _accountName + " via Pimple" );
             groupId = doInsert( ContactsContract.Groups.CONTENT_URI, values );
         }
         return groupId;
@@ -185,7 +189,7 @@ class PimpleContactInjector implements View.OnClickListener {
             Cursor c = _resolver.query( ContactsContract.RawContacts.CONTENT_URI,
                                         new String[] { ContactsContract.RawContacts._ID },
                                         QUERY + " AND " + ContactsContract.RawContacts.SOURCE_ID + "=?",
-                                        new String[] { PIMPLE_TYPE, _source, pimpleId },
+                                        new String[] { PIMPLE_TYPE, _accountName, pimpleId },
                                         null );
             try {
                 if (c.moveToNext()) {
@@ -200,7 +204,7 @@ class PimpleContactInjector implements View.OnClickListener {
         if (rawContactId < 0) {
             ContentValues values = new ContentValues();
             values.put( ContactsContract.RawContacts.ACCOUNT_TYPE, PIMPLE_TYPE );
-            values.put( ContactsContract.RawContacts.ACCOUNT_NAME, _source );
+            values.put( ContactsContract.RawContacts.ACCOUNT_NAME, _accountName );
             values.put( ContactsContract.RawContacts.SOURCE_ID, pimpleId );
             rawContactId = doInsert( ContactsContract.RawContacts.CONTENT_URI, values );
 
@@ -233,7 +237,7 @@ class PimpleContactInjector implements View.OnClickListener {
             query.append( ',' ).append( id );
         }
         query.append( ')' );
-        counts[ COUNT_CONTACTS_DELETED ] += _resolver.delete( adapterUri, query.toString(), new String[] { PIMPLE_TYPE, _source } );
+        counts[ COUNT_CONTACTS_DELETED ] += _resolver.delete( adapterUri, query.toString(), new String[] { PIMPLE_TYPE, _accountName } );
 
         query.setLength( 0 );
         query.append( ContactsContract.Data._ID ).append( " IN (-1" );
@@ -407,9 +411,7 @@ class PimpleContactInjector implements View.OnClickListener {
         return counts;
     }
 
-    // View.OnClickListener implementation
-
-    public void onClick( View v ) {
+    /*package*/ void inject() {
         try {
             InputStream in = fetchContacts();
             if (in == null) {
