@@ -11,6 +11,8 @@ import android.content.Intent;
 import android.os.IBinder;
 
 public class Pimple extends Service {
+    public static final String ACCOUNT_TYPE = "com.staktrace.pimple";
+
     private final PimpleAccountAuthenticator _authenticator;
 
     public Pimple() {

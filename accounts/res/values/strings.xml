@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Pimple</string>
+
+    <string name="login_activity_username_label">Username</string>
+    <string name="login_activity_password_label">Password</string>
+    <string name="login_activity_ok_button">Log In</string>
+
+    <string name="login_activity_authenticating">Authenticating...</string>
+
+    <string name="error_empty_username">Please specify a username</string>
+    <string name="error_failed_auth">Authentication failed; please try again</string>
 </resources>
