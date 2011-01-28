@@ -111,11 +111,12 @@ class PimpleContactInjector extends Thread {
         } catch (Exception e) {
             Log.e( TAG, "Error while getting auth token", e );
         }
-        Log.d( TAG, "Auth token fetch complete, got " + cookie );
         if (cookie == null) {
+            Log.w( TAG, "Got a null cookie from auth token fetch" );
             return null;
         }
 
+        Log.d( TAG, "Auth token fetch complete, got " + cookie );
         String server = _accountName;
         int at = server.indexOf( '@' );
         if (at >= 0) {
@@ -124,10 +125,12 @@ class PimpleContactInjector extends Thread {
         URL url = new URL( "https://" + server + "/touch/vcard.php?tag=vcard" );
         URLConnection conn = url.openConnection();
         conn.addRequestProperty( "Cookie", cookie );
-        Log.d( TAG, "Received document of type " + conn.getContentType() + " from pimple" );
+        Log.i( TAG, "Received document of type " + conn.getContentType() + " from pimple" );
         if (conn.getContentType().equalsIgnoreCase( MIME_VCARD )) {
             return conn.getInputStream();
         } else {
+            Log.w( TAG, "Didn't get back a vcard file; invalidating auth token" );
+            am.invalidateAuthToken( PIMPLE_TYPE, cookie );
             return null;
         }
     }
