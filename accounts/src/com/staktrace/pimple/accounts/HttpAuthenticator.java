@@ -51,7 +51,7 @@ class HttpAuthenticator {
                 StringBuffer sb = new StringBuffer();
                 sb.append( "username=" ).append( URLEncoder.encode( user, encoding ) )
                   .append( "&password=" ).append( URLEncoder.encode( _password, encoding ) )
-                  .append( "&sname=" ).append( URLEncoder.encode( Build.HOST + "/pimple", encoding ) );
+                  .append( "&sname=" ).append( URLEncoder.encode( Build.MODEL + "/pimple", encoding ) );
                 byte[] b = sb.toString().getBytes();
                 http.setRequestProperty( "Content-Length", Integer.toString( b.length ) );
                 OutputStream out = http.getOutputStream();
