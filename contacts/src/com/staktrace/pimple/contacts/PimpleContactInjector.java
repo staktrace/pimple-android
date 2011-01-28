@@ -5,6 +5,9 @@
 
 package com.staktrace.pimple.contacts;
 
+import android.accounts.Account;
+import android.accounts.AccountManager;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ContentProviderOperation;
 import android.content.ContentResolver;
@@ -15,6 +18,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.RemoteException;
 import android.provider.ContactsContract;
+import android.util.Log;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -30,10 +34,12 @@ import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.TreeSet;
 
-class PimpleContactInjector {
+class PimpleContactInjector extends Thread {
+    private static final String TAG = "PimpleContactInjector";
     private static final String QUERY = ContactsContract.RawContacts.ACCOUNT_TYPE + "=? AND " + ContactsContract.RawContacts.ACCOUNT_NAME + "=?";
     private static final String PIMPLE_TYPE = "com.staktrace.pimple";
     private static final String MIME_VCARD = "text/x-vcard";
+    private static final String TOKEN_TYPE_COOKIE = "cookie"; // must match com.staktrace.pimple.accounts.Pimple.TOKEN_TYPE_COOKIE
 
     private static final String NAME_ID = "X-PIMPLE-ID";
     private static final int NAME_FULLNAME = 0;
@@ -70,13 +76,15 @@ class PimpleContactInjector {
     private static final int FIELD_VALUE = 3;
     private static final int NUM_FIELDS = 4;
 
+    private final Activity _activity;
     private final Context _context;
     private final ContentResolver _resolver;
     private final MessageDigest _digester;
     private String _accountName;
 
-    PimpleContactInjector( Context context ) {
-        _context = context;
+    PimpleContactInjector( Activity activity ) {
+        _activity = activity;
+        _context = activity;
         _resolver = _context.getContentResolver();
         MessageDigest digester;
         try {
@@ -88,31 +96,39 @@ class PimpleContactInjector {
     }
 
     private InputStream fetchContacts() throws IOException {
-        BufferedReader br = new BufferedReader( new InputStreamReader( _context.getResources().openRawResource( R.raw.pimple ) ) );
+        AccountManager am = AccountManager.get( _context );
+        Account[] accounts = am.getAccountsByType( PIMPLE_TYPE );
+        Account account;
+        if (accounts.length == 0) {
+            return null;
+        }
+        account = accounts[ 0 ];      // TODO prompt the user to select which account they want to use
+        _accountName = account.name;
+
+        String cookie = null;
         try {
-            _accountName = br.readLine();
-            String server = _accountName;
-            int at = server.indexOf( '@' );
-            if (at >= 0) {
-                server = server.substring( at + 1 );
-            }
-            URL url = new URL( "https://" + server + "/touch/vcard.php?tag=vcard" );
-            URLConnection conn = url.openConnection();
-            for (String s = br.readLine(); s != null; s = br.readLine()) {
-                int colon = s.indexOf( ':' );
-                if (colon < 0) {
-                    continue;
-                }
-                conn.addRequestProperty( s.substring( 0, colon ), s.substring( colon + 1 ) );
-            }
-            System.out.println( "Received document of type " + conn.getContentType() + " from pimple" );
-            if (conn.getContentType().equalsIgnoreCase( MIME_VCARD )) {
-                return conn.getInputStream();
-            } else {
-                return null;
-            }
-        } finally {
-            br.close();
+            cookie = am.getAuthToken( account, TOKEN_TYPE_COOKIE, null, _activity, null, null ).getResult().getString( AccountManager.KEY_AUTHTOKEN );
+        } catch (Exception e) {
+            Log.e( TAG, "Error while getting auth token", e );
+        }
+        Log.d( TAG, "Auth token fetch complete, got " + cookie );
+        if (cookie == null) {
+            return null;
+        }
+
+        String server = _accountName;
+        int at = server.indexOf( '@' );
+        if (at >= 0) {
+            server = server.substring( at + 1 );
+        }
+        URL url = new URL( "https://" + server + "/touch/vcard.php?tag=vcard" );
+        URLConnection conn = url.openConnection();
+        conn.addRequestProperty( "Cookie", cookie );
+        Log.d( TAG, "Received document of type " + conn.getContentType() + " from pimple" );
+        if (conn.getContentType().equalsIgnoreCase( MIME_VCARD )) {
+            return conn.getInputStream();
+        } else {
+            return null;
         }
     }
 
@@ -320,7 +336,7 @@ class PimpleContactInjector {
 
             ContentProviderOperation.Builder builder = null;
             if (dataId < 0) {
-                System.out.println( "Data item for [" + fields[ FIELD_NAME ] + "]/[" + fields[ FIELD_ID ] + "] not found; creating..." );
+                Log.d( TAG, "Data item for [" + fields[ FIELD_NAME ] + "]/[" + fields[ FIELD_ID ] + "] not found; creating..." );
                 builder = ContentProviderOperation.newInsert( ContactsContract.Data.CONTENT_URI )
                                                   .withValue( ContactsContract.Data.RAW_CONTACT_ID, rawContactId )
                                                   .withValue( ContactsContract.Data.SYNC1, fields[ FIELD_ID ] )
@@ -330,7 +346,7 @@ class PimpleContactInjector {
             } else {
                 liveDataIds.add( dataId );
                 if (! newDigest.equals( oldDigest )) {
-                    System.out.println( "Data item for [" + fields[ FIELD_NAME ] + "]/[" + fields[ FIELD_ID ] + "] modified; updating..." );
+                    Log.d( TAG, "Data item for [" + fields[ FIELD_NAME ] + "]/[" + fields[ FIELD_ID ] + "] modified; updating..." );
                     builder = ContentProviderOperation.newUpdate( ContactsContract.Data.CONTENT_URI )
                                                       .withSelection( ContactsContract.Data._ID + "=?", new String[] { Integer.toString( dataId ) } )
                                                       .withValue( ContactsContract.Data.SYNC2, newDigest );
@@ -375,12 +391,12 @@ class PimpleContactInjector {
                 continue;
             }
 
-            System.out.println( "Processing vcard for pimple id " + pimpleId );
+            Log.d( TAG, "Processing vcard for pimple id " + pimpleId );
 
             int rawContactId = getRawContactId( pimpleId, groupId, ops, counts );
             liveRawContactIds.add( rawContactId );
 
-            System.out.println( "Mapped to raw contact id [" + rawContactId + "]" );
+            Log.d( TAG, "Mapped to raw contact id [" + rawContactId + "]" );
 
             Cursor c = _resolver.query( ContactsContract.Data.CONTENT_URI,
                                         new String[] { ContactsContract.Data._ID, ContactsContract.Data.MIMETYPE, ContactsContract.Data.SYNC1, ContactsContract.Data.SYNC2 },
@@ -393,7 +409,7 @@ class PimpleContactInjector {
                 while (c.moveToNext()) {
                     int dataId = c.getInt( 0 );
                     if (! liveDataIds.contains( dataId )) {
-                        System.out.println( "Found dead data item [" + dataId + "]" );
+                        Log.i( TAG, "Found dead data item [" + dataId + "]" );
                         deadDataIds.add( dataId );
                     }
                 }
@@ -411,7 +427,11 @@ class PimpleContactInjector {
         return counts;
     }
 
-    /*package*/ void inject() {
+    // Thread implementation
+
+    @Override public void run() {
+        String message;
+
         try {
             InputStream in = fetchContacts();
             if (in == null) {
@@ -419,20 +439,26 @@ class PimpleContactInjector {
             }
             try {
                 int[] counts = updateContacts( new BufferedReader( new InputStreamReader( in ) ), getGroupId() );
-                String msg = "Injected " + counts[ COUNT_CONTACTS_ADDED ] + " new contacts"
-                           + " and deleted " + counts[ COUNT_CONTACTS_DELETED ] + " contacts."
-                           + " Added " + counts[ COUNT_DATA_ADDED ] + " new data items, updated " + counts[ COUNT_DATA_UPDATED ]
-                           + " existing data items, and deleted " + counts[ COUNT_DATA_DELETED ] + " data items.";
-                new AlertDialog.Builder( _context ).setTitle( "Pimple" ).setMessage( msg ).show();
+                message = "Injected " + counts[ COUNT_CONTACTS_ADDED ] + " new contacts"
+                        + " and deleted " + counts[ COUNT_CONTACTS_DELETED ] + " contacts."
+                        + " Added " + counts[ COUNT_DATA_ADDED ] + " new data items, updated " + counts[ COUNT_DATA_UPDATED ]
+                        + " existing data items, and deleted " + counts[ COUNT_DATA_DELETED ] + " data items.";
             } catch (Exception e) {
                 e.printStackTrace();
-                new AlertDialog.Builder( _context ).setTitle( "Pimple" ).setMessage( e.toString() ).show();
+                message = e.toString();
             } finally {
                 in.close();
             }
         } catch (IOException ioe) {
             ioe.printStackTrace();
-            new AlertDialog.Builder( _context ).setTitle( "Pimple" ).setMessage( ioe.toString() ).show();
+            message = ioe.toString();
         }
+        final String msg = message;
+        _activity.runOnUiThread( new Runnable() {
+            public void run() {
+                _activity.dismissDialog( 0 );
+                new AlertDialog.Builder( _context ).setTitle( "Pimple" ).setMessage( msg ).show();
+            }
+        } );
     }
 }
