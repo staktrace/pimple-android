@@ -5,9 +5,15 @@
     <string name="login_activity_username_label">Username</string>
     <string name="login_activity_password_label">Password</string>
     <string name="login_activity_ok_button">Log In</string>
+    <string name="login_activity_cancel_button">Cancel</string>
 
     <string name="login_activity_authenticating">Authenticating...</string>
 
     <string name="error_empty_username">Please specify a username</string>
+    <string name="error_unknown_username">The username must be in user@host format</string>
     <string name="error_failed_auth">Authentication failed; please try again</string>
+    <string name="error_network">A network error occurred while verifying credentials; please try again later</string>
+
+    <string name="label_cookie">HTTP Cookie</string>
+    <string name="label_unknown">Unknown</string>
 </resources>

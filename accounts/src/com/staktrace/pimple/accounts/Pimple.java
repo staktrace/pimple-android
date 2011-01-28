@@ -12,6 +12,9 @@ import android.os.IBinder;
 
 public class Pimple extends Service {
     public static final String ACCOUNT_TYPE = "com.staktrace.pimple";
+    public static final String TOKEN_TYPE_COOKIE = "cookie";
+    public static final String TOKEN_TYPE_CONFIRM = "confirm";
+    static final String HTTP_COOKIE_HEADER = "x-pimple-cookie";
 
     private final PimpleAccountAuthenticator _authenticator;
 

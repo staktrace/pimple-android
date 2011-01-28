@@ -12,8 +12,10 @@
             <meta-data android:name="android.accounts.AccountAuthenticator"
                        android:resource="@xml/authenticator" />
         </service>
-        <activity android:name="com.staktrace.pimple.accounts.AddAccountActivity">
+        <activity android:name="com.staktrace.pimple.accounts.AddAccountActivity"
+                  android:exported="true">
         </activity>
     </application>
     <uses-permission android:name="android.permission.AUTHENTICATE_ACCOUNTS"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
 </manifest> 

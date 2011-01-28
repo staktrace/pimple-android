@@ -102,9 +102,17 @@
             android:id="@+id/ok_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
+            android:layout_gravity="left"
             android:minWidth="100dip"
             android:text="@string/login_activity_ok_button"
             android:onClick="handleLogin" />
+        <Button
+            android:id="@+id/cancel_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="right"
+            android:minWidth="100dip"
+            android:text="@string/login_activity_cancel_button"
+            android:onClick="handleCancel" />
     </FrameLayout>
 </LinearLayout>
