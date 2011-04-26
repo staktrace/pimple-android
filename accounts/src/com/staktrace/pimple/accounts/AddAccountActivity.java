@@ -70,12 +70,15 @@ public class AddAccountActivity extends AccountAuthenticatorActivity {
     public void handleLogin( View view ) {
         final String username = _usernameField.getText().toString();
         final String password = _passwordField.getText().toString();
+        Log.d( TAG, "Handling login for username [" + username + "]" );
         final HttpAuthenticator authenticator = new HttpAuthenticator( username, password );
         showDialog( 0 );
         final Handler handler = new Handler();
         _authThread = new Thread() {
             public void run() {
+                Log.d( TAG, "Starting http authenticator" );
                 final boolean success = authenticator.authenticate();
+                Log.d( TAG, "Completed http authentication with result " + (success ? "PASS" : "FAIL") );
                 handler.post( new Runnable() {
                     public void run() {
                         dismissDialog( 0 );
