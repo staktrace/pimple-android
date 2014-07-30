@@ -14,6 +14,7 @@ import android.util.Log;
 public class PimpleAccountAuthenticator extends AbstractAccountAuthenticator {
     private static final String TAG = "PimpleAccountAuthenticator";
     private final Context _context;
+    private String _authToken;
 
     public PimpleAccountAuthenticator( Context context ) {
         super( context );
@@ -54,16 +55,22 @@ public class PimpleAccountAuthenticator extends AbstractAccountAuthenticator {
     public Bundle getAuthToken( AccountAuthenticatorResponse response, Account account, String authTokenType, Bundle options ) {
         Log.i( TAG, "In getAuthToken with [" + response + "," + account + "," + authTokenType + "," + options + "]" );
 
-        String password = AccountManager.get( _context ).getPassword( account );
-        if (password != null) {
-            HttpAuthenticator authenticator = new HttpAuthenticator( account.name, password );
-            if (authenticator.authenticate()) {
-                Bundle result = new Bundle();
-                result.putString( AccountManager.KEY_ACCOUNT_NAME, account.name );
-                result.putString( AccountManager.KEY_ACCOUNT_TYPE, Pimple.ACCOUNT_TYPE );
-                result.putString( AccountManager.KEY_AUTHTOKEN, authenticator.getToken() );
-                return result;
+        if (_authToken == null) {
+            String password = AccountManager.get( _context ).getPassword( account );
+            if (password != null) {
+                HttpAuthenticator authenticator = new HttpAuthenticator( account.name, password );
+                if (authenticator.authenticate()) {
+                    _authToken = authenticator.getToken();
+                }
             }
+        }
+
+        if (_authToken != null) {
+            Bundle result = new Bundle();
+            result.putString( AccountManager.KEY_ACCOUNT_NAME, account.name );
+            result.putString( AccountManager.KEY_ACCOUNT_TYPE, Pimple.ACCOUNT_TYPE );
+            result.putString( AccountManager.KEY_AUTHTOKEN, _authToken );
+            return result;
         }
 
         return updateCredentials( response, account, authTokenType, options );
