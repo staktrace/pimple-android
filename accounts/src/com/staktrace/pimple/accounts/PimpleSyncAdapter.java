@@ -21,11 +21,16 @@ public class PimpleSyncAdapter extends AbstractThreadedSyncAdapter {
         super( context, true );
     }
 
+    private void doContactSync( Account account ) {
+        new PimpleContactInjector( getContext(), account ).run();
+    }
+
     // AbstractThreadedSyncAdapter implementation
 
     @Override public void onPerformSync( Account account, Bundle extras, String authority, ContentProviderClient provider, SyncResult syncResult ) {
         Log.i( TAG, "In onPerformSync [" + account + "," + extras + "," + authority + "," + provider + "," + syncResult + "]" );
         if (ContactsContract.AUTHORITY.equals( authority )) {
+            doContactSync( account );
         } // else if CalendarContract.AUTHORITY...
     }
 }
