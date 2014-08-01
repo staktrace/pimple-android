@@ -45,7 +45,8 @@ class PimpleContactInjector {
     private enum MappedField {
         NAME("FN", ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE),
         TELEPHONE("TEL", ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE),
-        EMAIL("EMAIL", ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE);
+        EMAIL("EMAIL", ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE),
+        ADDRESS("ADR", ContactsContract.CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE);
 
         public final String name;
         public final String mimeType;
@@ -170,6 +171,7 @@ class PimpleContactInjector {
     }
 
     private String[] splitVcardInput( String vcardLine ) {
+        // TODO: deal with escaped input
         String[] data = new String[ NUM_FIELDS ];
         int semicolon = vcardLine.indexOf( ';' );
         int colon = vcardLine.indexOf( ':' );
@@ -309,6 +311,19 @@ class PimpleContactInjector {
             case EMAIL:
                 builder = builder.withValue( ContactsContract.CommonDataKinds.Email.DATA, fields[ FIELD_VALUE ] )
                                  .withValue( ContactsContract.CommonDataKinds.Email.TYPE, ContactsContract.CommonDataKinds.Email.TYPE_CUSTOM )
+                                 .withValue( ContactsContract.CommonDataKinds.Email.LABEL, fields[ FIELD_TYPE ] );
+                break;
+            case ADDRESS:
+                // TODO: deal with escaped input
+                String[] parts = fields[ FIELD_VALUE ].split( ";" );
+                builder = builder.withValue( ContactsContract.CommonDataKinds.StructuredPostal.POBOX, parts.length < 1 ? "" : parts[ 0 ] )
+                                 .withValue( ContactsContract.CommonDataKinds.StructuredPostal.STREET, parts.length < 2 ? "" : parts[ 1 ] )
+                                 .withValue( ContactsContract.CommonDataKinds.StructuredPostal.NEIGHBORHOOD, parts.length < 3 ? "" : parts[ 2 ] )
+                                 .withValue( ContactsContract.CommonDataKinds.StructuredPostal.CITY, parts.length < 4 ? "" : parts[ 3 ] )
+                                 .withValue( ContactsContract.CommonDataKinds.StructuredPostal.REGION, parts.length < 5 ? "" : parts[ 4 ] )
+                                 .withValue( ContactsContract.CommonDataKinds.StructuredPostal.POSTCODE, parts.length < 6 ? "" : parts[ 5 ] )
+                                 .withValue( ContactsContract.CommonDataKinds.StructuredPostal.COUNTRY, parts.length < 7 ? "" : parts[ 6 ] )
+                                 .withValue( ContactsContract.CommonDataKinds.StructuredPostal.TYPE, ContactsContract.CommonDataKinds.Email.TYPE_CUSTOM )
                                  .withValue( ContactsContract.CommonDataKinds.Email.LABEL, fields[ FIELD_TYPE ] );
                 break;
         }
