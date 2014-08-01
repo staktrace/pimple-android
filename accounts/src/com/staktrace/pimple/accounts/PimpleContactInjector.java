@@ -42,26 +42,34 @@ class PimpleContactInjector {
     private static final String TOKEN_TYPE_COOKIE = "cookie"; // must match com.staktrace.pimple.accounts.Pimple.TOKEN_TYPE_COOKIE
 
     private static final String NAME_ID = "X-PIMPLE-ID";
-    private static final int NAME_FULLNAME = 0;
-    private static final int NAME_TELEPHONE = 1;
-    private static final int NAME_EMAIL = 2;
-    private static final String[] NAME_STRINGS = new String[] {
-        "FN",
-        "TEL",
-        "EMAIL",
-    };
-    private static final String[] NAME_MIMETYPES = new String[] {
-        ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE,
-        ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE,
-        ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE,
+    private enum MappedField {
+        NAME("FN", ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE),
+        TELEPHONE("TEL", ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE),
+        EMAIL("EMAIL", ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE);
+
+        public final String name;
+        public final String mimeType;
+
+        MappedField( String name_, String mimeType_ ) {
+            name = name_;
+            mimeType = mimeType_;
+        }
     };
 
     private static final String PARAM_TYPE = "TYPE=";
     private static final String PARAM_ID = "X-PIMPLE-ID=";
 
-    private static final String TYPE_HOME = "HOME";
-    private static final String TYPE_WORK = "WORK";
-    private static final String TYPE_CELL = "CELL";
+    private enum PhoneTypeMap {
+        HOME(ContactsContract.CommonDataKinds.Phone.TYPE_HOME),
+        WORK(ContactsContract.CommonDataKinds.Phone.TYPE_WORK),
+        CELL(ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE);
+
+        public final int androidType;
+
+        PhoneTypeMap( int androidType_ ) {
+            androidType = androidType_;
+        }
+    };
 
     private static final int COUNT_CONTACTS_ADDED = 0;
     private static final int COUNT_CONTACTS_DELETED = 1;
@@ -233,13 +241,13 @@ class PimpleContactInjector {
         return rawContactId;
     }
 
-    private int nameInt( String fieldName ) {
-        for (int i = NAME_STRINGS.length - 1; i >= 0; i--) {
-            if (NAME_STRINGS[i].equals( fieldName )) {
-                return i;
+    private MappedField mapField( String fieldName ) {
+        for (MappedField field : MappedField.values()) {
+            if (field.name.equals( fieldName )) {
+                return field;
             }
         }
-        return -1;
+        return null;
     }
 
     private void removeDeadItems( List<Integer> liveRawContactIds, List<Integer> deadDataIds, int[] counts ) {
@@ -280,24 +288,25 @@ class PimpleContactInjector {
         return sb.toString();
     }
 
-    private ContentProviderOperation.Builder updateBuilder( ContentProviderOperation.Builder builder, int name, String[] fields ) {
-        switch (name) {
-            case NAME_FULLNAME:
+    private ContentProviderOperation.Builder updateBuilder( ContentProviderOperation.Builder builder, MappedField field, String[] fields ) {
+        switch (field) {
+            case NAME:
                 builder = builder.withValue( ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, fields[ FIELD_VALUE ] );
                 break;
-            case NAME_TELEPHONE:
-                int typeInt = 0;
-                if (TYPE_CELL.equalsIgnoreCase( fields[ FIELD_TYPE ] )) {
-                    typeInt = ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE;
-                } else if (TYPE_HOME.equalsIgnoreCase( fields[ FIELD_TYPE ] )) {
-                    typeInt = ContactsContract.CommonDataKinds.Phone.TYPE_HOME;
-                } else if (TYPE_WORK.equalsIgnoreCase( fields[ FIELD_TYPE ] )) {
-                    typeInt = ContactsContract.CommonDataKinds.Phone.TYPE_WORK;
+            case TELEPHONE:
+                int typeInt = ContactsContract.CommonDataKinds.Phone.TYPE_CUSTOM;
+                for (PhoneTypeMap type : PhoneTypeMap.values()) {
+                    if (type.name().equalsIgnoreCase( fields[ FIELD_TYPE ] )) {
+                        typeInt = type.androidType;
+                    }
                 }
                 builder = builder.withValue( ContactsContract.CommonDataKinds.Phone.NUMBER, fields[ FIELD_VALUE ] )
                                  .withValue( ContactsContract.CommonDataKinds.Phone.TYPE, typeInt );
+                if (typeInt == ContactsContract.CommonDataKinds.Phone.TYPE_CUSTOM) {
+                    builder = builder.withValue( ContactsContract.CommonDataKinds.Phone.LABEL, fields[ FIELD_TYPE ] );
+                }
                 break;
-            case NAME_EMAIL:
+            case EMAIL:
                 builder = builder.withValue( ContactsContract.CommonDataKinds.Email.DATA, fields[ FIELD_VALUE ] )
                                  .withValue( ContactsContract.CommonDataKinds.Email.TYPE, ContactsContract.CommonDataKinds.Email.TYPE_CUSTOM )
                                  .withValue( ContactsContract.CommonDataKinds.Email.LABEL, fields[ FIELD_TYPE ] );
@@ -310,8 +319,8 @@ class PimpleContactInjector {
         Set<Integer> liveDataIds = new TreeSet<Integer>();
 
         for (String[] fields : vcard) {
-            int name = nameInt( fields[ FIELD_NAME ] );
-            if (name < 0) {
+            MappedField field = mapField( fields[ FIELD_NAME ] );
+            if (field == null) {
                 continue;
             }
 
@@ -323,7 +332,7 @@ class PimpleContactInjector {
             String oldDigest = null;
             dataCursor.moveToFirst();
             while (dataCursor.moveToNext()) {
-                if (fields[ FIELD_ID ].equals( dataCursor.getString( 2 ) ) && NAME_MIMETYPES[ name ].equals( dataCursor.getString( 1 ))) {
+                if (fields[ FIELD_ID ].equals( dataCursor.getString( 2 ) ) && field.mimeType.equals( dataCursor.getString( 1 ))) {
                     dataId = dataCursor.getInt( 0 );
                     oldDigest = dataCursor.getString( 3 );
                     break;
@@ -339,7 +348,7 @@ class PimpleContactInjector {
                                                   .withValue( ContactsContract.Data.RAW_CONTACT_ID, rawContactId )
                                                   .withValue( ContactsContract.Data.SYNC1, fields[ FIELD_ID ] )
                                                   .withValue( ContactsContract.Data.SYNC2, newDigest )
-                                                  .withValue( ContactsContract.Data.MIMETYPE, NAME_MIMETYPES[ name ] );
+                                                  .withValue( ContactsContract.Data.MIMETYPE, field.mimeType );
                 counts[ COUNT_DATA_ADDED ]++;
             } else {
                 liveDataIds.add( dataId );
@@ -353,7 +362,7 @@ class PimpleContactInjector {
             }
 
             if (builder != null) {
-                builder = updateBuilder( builder, name, fields );
+                builder = updateBuilder( builder, field, fields );
                 ops.add( builder.build() );
             }
         }
