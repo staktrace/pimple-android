@@ -14,6 +14,8 @@
                        android:resource="@xml/authenticator" />
             <meta-data android:name="android.content.SyncAdapter"
                        android:resource="@xml/syncadapter" />
+            <meta-data android:name="android.provider.CONTACTS_STRUCTURE"
+                       android:resource="@xml/contacts" />
         </service>
         <activity android:name="com.staktrace.pimple.accounts.AddAccountActivity"
                   android:exported="true">
