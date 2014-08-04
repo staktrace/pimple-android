@@ -36,7 +36,7 @@ import java.util.TreeSet;
 
 import com.staktrace.pimple.accounts.Pimple;
 
-class PimpleContactInjector {
+class ContactInjector {
     private static final String TAG = "PimpleContactInjector";
     private static final String QUERY = ContactsContract.RawContacts.ACCOUNT_TYPE + "=? AND " + ContactsContract.RawContacts.ACCOUNT_NAME + "=?";
     private static final String MIME_VCARD = "text/x-vcard";
@@ -91,7 +91,7 @@ class PimpleContactInjector {
     private final MessageDigest _digester;
     private final String _accountName;
 
-    PimpleContactInjector( Context context, Account account ) {
+    ContactInjector( Context context, Account account ) {
         _context = context;
         _account = account;
         _accountName = _account.name;

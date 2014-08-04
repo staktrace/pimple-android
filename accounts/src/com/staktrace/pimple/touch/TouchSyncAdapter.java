@@ -26,7 +26,7 @@ public class TouchSyncAdapter extends Service {
             @Override public void onPerformSync( Account account, Bundle extras, String authority, ContentProviderClient provider, SyncResult syncResult ) {
                 Log.i( TAG, "In onPerformSync [" + account + "," + extras + "," + authority + "," + provider + "," + syncResult + "]" );
                 if (ContactsContract.AUTHORITY.equals( authority )) {
-                    new PimpleContactInjector( getContext(), account ).run();
+                    new ContactInjector( getContext(), account ).run();
                 }
             }
         };
