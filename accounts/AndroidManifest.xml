@@ -8,20 +8,35 @@
                  android:exported="true">
             <intent-filter>
                 <action android:name="android.accounts.AccountAuthenticator" />
-                <action android:name="android.content.SyncAdapter" />
             </intent-filter>
             <meta-data android:name="android.accounts.AccountAuthenticator"
                        android:resource="@xml/authenticator" />
-            <meta-data android:name="android.content.SyncAdapter"
-                       android:resource="@xml/touchsync" />
-            <meta-data android:name="android.provider.CONTACTS_STRUCTURE"
-                       android:resource="@xml/contacts" />
-            <meta-data android:name="android.content.SyncAdapter"
-                       android:resource="@xml/epochsync" />
         </service>
         <activity android:name="com.staktrace.pimple.accounts.AddAccountActivity"
                   android:exported="true">
         </activity>
+
+        <service android:name="com.staktrace.pimple.touch.TouchSyncAdapter"
+                 android:exported="true"
+                 android:process=":sync">
+            <intent-filter>
+                <action android:name="android.content.SyncAdapter" />
+            </intent-filter>
+            <meta-data android:name="android.content.SyncAdapter"
+                       android:resource="@xml/touchsync" />
+            <meta-data android:name="android.provider.CONTACTS_STRUCTURE"
+                       android:resource="@xml/contacts" />
+        </service>
+
+        <service android:name="com.staktrace.pimple.epoch.EpochSyncAdapter"
+                 android:exported="true"
+                 android:process=":sync">
+            <intent-filter>
+                <action android:name="android.content.SyncAdapter" />
+            </intent-filter>
+            <meta-data android:name="android.content.SyncAdapter"
+                       android:resource="@xml/epochsync" />
+        </service>
     </application>
     <uses-permission android:name="android.permission.INTERNET"/>
 

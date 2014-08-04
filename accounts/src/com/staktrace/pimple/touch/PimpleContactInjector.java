@@ -3,7 +3,7 @@
  * See http://staktrace.com/ for license details.
  */
 
-package com.staktrace.pimple.accounts;
+package com.staktrace.pimple.touch;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
@@ -33,6 +33,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.TreeSet;
+
+import com.staktrace.pimple.accounts.Pimple;
 
 class PimpleContactInjector {
     private static final String TAG = "PimpleContactInjector";

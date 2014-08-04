@@ -15,7 +15,7 @@ import java.net.URLConnection;
 import java.net.URLEncoder;
 
 class HttpAuthenticator {
-    private static final String TAG = "HttpAuthenticator";
+    private static final String TAG = "PimpleHttpAuthenticator";
 
     private final String _username;
     private final String _password;

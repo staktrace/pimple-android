@@ -20,7 +20,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 public class AddAccountActivity extends AccountAuthenticatorActivity {
-    private static final String TAG = "AddAccountActivity";
+    private static final String TAG = "PimpleAddAccountActivity";
     static final String PARAM_USERNAME = "com.staktrace.pimple.accounts.username";
     static final String PARAM_TOKEN_TYPE = "com.staktrace.pimple.accounts.tokentype";
 

@@ -20,11 +20,9 @@ public class Pimple extends Service {
     static final String HTTP_COOKIE_HEADER = "x-pimple-cookie";
 
     private final PimpleAccountAuthenticator _authenticator;
-    private final PimpleSyncAdapter _syncAdapter;
 
     public Pimple() {
         _authenticator = new PimpleAccountAuthenticator( this );
-        _syncAdapter = new PimpleSyncAdapter( this );
     }
 
     @Override public IBinder onBind( Intent intent ) {
@@ -32,8 +30,6 @@ public class Pimple extends Service {
         IBinder binder = null;
         if (AccountManager.ACTION_AUTHENTICATOR_INTENT.equals( intent.getAction() )) {
             binder = _authenticator.getIBinder();
-        } else if ("android.content.SyncAdapter".equals( intent.getAction() )) {
-            binder = _syncAdapter.getSyncAdapterBinder();
         }
         Log.i( TAG, "Returning binder " + binder );
         return binder;
