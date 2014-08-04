@@ -13,9 +13,11 @@
             <meta-data android:name="android.accounts.AccountAuthenticator"
                        android:resource="@xml/authenticator" />
             <meta-data android:name="android.content.SyncAdapter"
-                       android:resource="@xml/syncadapter" />
+                       android:resource="@xml/touchsync" />
             <meta-data android:name="android.provider.CONTACTS_STRUCTURE"
                        android:resource="@xml/contacts" />
+            <meta-data android:name="android.content.SyncAdapter"
+                       android:resource="@xml/epochsync" />
         </service>
         <activity android:name="com.staktrace.pimple.accounts.AddAccountActivity"
                   android:exported="true">
