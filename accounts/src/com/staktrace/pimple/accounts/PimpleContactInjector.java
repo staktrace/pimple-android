@@ -37,11 +37,8 @@ import java.util.TreeSet;
 class PimpleContactInjector {
     private static final String TAG = "PimpleContactInjector";
     private static final String QUERY = ContactsContract.RawContacts.ACCOUNT_TYPE + "=? AND " + ContactsContract.RawContacts.ACCOUNT_NAME + "=?";
-    private static final String PIMPLE_TYPE = "com.staktrace.pimple";
     private static final String MIME_VCARD = "text/x-vcard";
-    private static final String TOKEN_TYPE_COOKIE = "cookie"; // must match com.staktrace.pimple.accounts.Pimple.TOKEN_TYPE_COOKIE
 
-    private static final String NAME_ID = "X-PIMPLE-ID";
     private enum MappedField {
         NAME("FN", ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE),
         TELEPHONE("TEL", ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE),
@@ -57,6 +54,7 @@ class PimpleContactInjector {
         }
     };
 
+    private static final String NAME_ID = "X-PIMPLE-ID";
     private static final String PARAM_TYPE = "TYPE=";
     private static final String PARAM_ID = "X-PIMPLE-ID=";
 
@@ -111,7 +109,7 @@ class PimpleContactInjector {
 
         String cookie = null;
         try {
-            cookie = am.getAuthToken( _account, TOKEN_TYPE_COOKIE, null, true, null, null ).getResult().getString( AccountManager.KEY_AUTHTOKEN );
+            cookie = am.getAuthToken( _account, Pimple.TOKEN_TYPE_COOKIE, null, true, null, null ).getResult().getString( AccountManager.KEY_AUTHTOKEN );
         } catch (Exception e) {
             Log.e( TAG, "Error while getting auth token", e );
         }
@@ -134,7 +132,7 @@ class PimpleContactInjector {
             return conn.getInputStream();
         } else {
             Log.w( TAG, "Didn't get back a vcard file; invalidating auth token" );
-            am.invalidateAuthToken( PIMPLE_TYPE, cookie );
+            am.invalidateAuthToken( Pimple.ACCOUNT_TYPE, cookie );
             return null;
         }
     }
@@ -149,7 +147,7 @@ class PimpleContactInjector {
         Cursor c = _resolver.query( ContactsContract.Groups.CONTENT_URI,
                                                         new String[] { ContactsContract.Groups._ID },
                                                         QUERY,
-                                                        new String[] { PIMPLE_TYPE, _accountName },
+                                                        new String[] { Pimple.ACCOUNT_TYPE, _accountName },
                                                         null );
         try {
             if (c.moveToNext()) {
@@ -160,7 +158,7 @@ class PimpleContactInjector {
         }
         if (groupId < 0) {
             ContentValues values = new ContentValues();
-            values.put( ContactsContract.Groups.ACCOUNT_TYPE, PIMPLE_TYPE );
+            values.put( ContactsContract.Groups.ACCOUNT_TYPE, Pimple.ACCOUNT_TYPE );
             values.put( ContactsContract.Groups.ACCOUNT_NAME, _accountName );
             values.put( ContactsContract.Groups.GROUP_VISIBLE, 1 );
             values.put( ContactsContract.Groups.TITLE, "Pimple from " + _accountName );
@@ -213,7 +211,7 @@ class PimpleContactInjector {
             Cursor c = _resolver.query( ContactsContract.RawContacts.CONTENT_URI,
                                         new String[] { ContactsContract.RawContacts._ID },
                                         QUERY + " AND " + ContactsContract.RawContacts.SOURCE_ID + "=?",
-                                        new String[] { PIMPLE_TYPE, _accountName, pimpleId },
+                                        new String[] { Pimple.ACCOUNT_TYPE, _accountName, pimpleId },
                                         null );
             try {
                 if (c.moveToNext()) {
@@ -227,7 +225,7 @@ class PimpleContactInjector {
         // if we don't have a contact index, create a contact and add it to the group
         if (rawContactId < 0) {
             ContentValues values = new ContentValues();
-            values.put( ContactsContract.RawContacts.ACCOUNT_TYPE, PIMPLE_TYPE );
+            values.put( ContactsContract.RawContacts.ACCOUNT_TYPE, Pimple.ACCOUNT_TYPE );
             values.put( ContactsContract.RawContacts.ACCOUNT_NAME, _accountName );
             values.put( ContactsContract.RawContacts.SOURCE_ID, pimpleId );
             rawContactId = doInsert( ContactsContract.RawContacts.CONTENT_URI, values );
@@ -261,7 +259,7 @@ class PimpleContactInjector {
             query.append( ',' ).append( id );
         }
         query.append( ')' );
-        counts[ COUNT_CONTACTS_DELETED ] += _resolver.delete( adapterUri, query.toString(), new String[] { PIMPLE_TYPE, _accountName } );
+        counts[ COUNT_CONTACTS_DELETED ] += _resolver.delete( adapterUri, query.toString(), new String[] { Pimple.ACCOUNT_TYPE, _accountName } );
 
         query.setLength( 0 );
         query.append( ContactsContract.Data._ID ).append( " IN (-1" );
