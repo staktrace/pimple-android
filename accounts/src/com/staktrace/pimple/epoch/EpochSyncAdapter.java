@@ -26,7 +26,7 @@ public class EpochSyncAdapter extends Service {
             @Override public void onPerformSync( Account account, Bundle extras, String authority, ContentProviderClient provider, SyncResult syncResult ) {
                 Log.i( TAG, "In onPerformSync [" + account + "," + extras + "," + authority + "," + provider + "," + syncResult + "]" );
                 if (CalendarContract.AUTHORITY.equals( authority )) {
-                    // TODO
+                    new CalendarCreator( getContext(), account ).run();
                 }
             }
         };
