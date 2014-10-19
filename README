@@ -1,0 +1,45 @@
+Hi there!
+
+This code is intended to serve as a working example of how to set up an
+"account" on Android, along with dummy (or working) sync adapters for contacts
+and calendar data. This allows you to store contact and calendar info on an
+Android device without going through the existing sync providers (primarily
+Google).
+
+This code is not intended to be used as-is, since it does a bunch of stuff like
+make HTTP requests against a server with undocumented interfaces and so on.
+Instead, use this code as a guide and take any parts that you need when rolling
+your own solution. Alternatively, start with this code and rip out all the
+HTTP-related code and replace it with stubs.
+
+There are three main "chunks" of code, which are in the three subdirectories
+under accounts/src/com/staktrace/pimple.
+
+1. The account authenticator
+   The code under accounts/ implements the Android account interfaces, so that
+   you can create an account of type "pimple". As-is the code requires a
+   username in the form of user@host and a password, and then attempts to verify
+   the user/password against a login script on "host". Feel free to rip that
+   part out (the HttpAuthenticator class) and just hard-code the places it's
+   used with an auth token or something.
+
+2. The contact sync adapter
+   The code under touch/ implements a one-way sync adapter that pulls contacts
+   from "host" and parses them assuming they're in a vcard format. It then
+   updates the local (device) contact store with the pulled data. Again, feel
+   free to rip that part out if you want.
+
+   Note that there is a file at accounts/res/xml/contacts.xml which is
+   registered in the AndroidManifest.xml as an
+   android.provider.CONTACTS_STRUCTURE. This is the thing that lets you create
+   a new contact into the pimple account using the contacts app on-device.
+   Without this part you won't be able to create new contacts from the UI.
+
+3. The calendar sync adapter
+   The code under epoch/ provides a dummy sync adapter that doesn't do anything
+   except pretend that it syncs calendar entries. Again, this allows you to
+   create and manipulate calendar entries via the calendar app on-device,
+   and they get "synced" to the pimple account rather than to Google or any
+   other service.
+
+That's all, folks!
