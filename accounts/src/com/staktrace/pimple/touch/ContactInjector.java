@@ -130,7 +130,7 @@ class ContactInjector {
         URLConnection conn = url.openConnection();
         conn.addRequestProperty( "Cookie", cookie );
         Log.i( TAG, "Received document of type " + conn.getContentType() + " from pimple" );
-        if (conn.getContentType().equalsIgnoreCase( MIME_VCARD )) {
+        if (conn.getContentType().toLowerCase().startsWith( MIME_VCARD )) {
             return conn.getInputStream();
         } else {
             Log.w( TAG, "Didn't get back a vcard file; invalidating auth token" );
