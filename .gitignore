@@ -1,3 +1,15 @@
+*.iml
+.gradle
 accounts/local.properties
-accounts/gen
-accounts/bin
+accounts/.idea/caches
+accounts/.idea/libraries
+accounts/.idea/modules.xml
+accounts/.idea/workspace.xml
+accounts/.idea/navEditor.xml
+accounts/.idea/assetWizardSettings.xml
+.DS_Store
+accounts/build
+accounts/captures
+.externalNativeBuild
+.cxx
+local.properties
