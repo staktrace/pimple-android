@@ -109,10 +109,9 @@ public class AddAccountActivity extends AccountAuthenticatorActivity {
 
             intent.putExtra( AccountManager.KEY_ACCOUNT_NAME, username );
             intent.putExtra( AccountManager.KEY_ACCOUNT_TYPE, Pimple.ACCOUNT_TYPE );
-            if (Pimple.TOKEN_TYPE_COOKIE.equals( _tokenType )) {
-                intent.putExtra( AccountManager.KEY_AUTHTOKEN, token );
-                AccountManager.get( this ).setAuthToken( new Account( username, Pimple.ACCOUNT_TYPE ), Pimple.TOKEN_TYPE_COOKIE, token );
-            }
+            intent.putExtra( AccountManager.KEY_AUTHTOKEN, token );
+            Log.i( TAG, "Storing token in account manager" );
+            AccountManager.get( this ).setAuthToken( new Account( username, Pimple.ACCOUNT_TYPE ), Pimple.TOKEN_TYPE_COOKIE, token );
         }
         setAccountAuthenticatorResult( intent.getExtras() );
         setResult( RESULT_OK, intent );
